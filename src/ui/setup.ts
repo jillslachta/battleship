@@ -19,9 +19,13 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
     update();
   });
   const randomButton = button('Randomize', () => {
-    mode = 'choose';
-    placements = layoutGenerator.next();
-    update();
+    try {
+      placements = layoutGenerator.next();
+      mode = 'choose';
+      update();
+    } catch {
+      warn('Could not lay out a random fleet — press Randomize again, or place your ships manually.');
+    }
   });
   const rotateButton = button(`Rotate`, () => {
     orientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
@@ -31,7 +35,17 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
     placements = [];
     update();
   });
-  const startButton = button('Start battle', () => onReady(placements), 'primary-button');
+  const startButton = button(
+    'Start battle',
+    () => {
+      try {
+        onReady(placements);
+      } catch {
+        warn('Could not lay out the enemy fleet — press Start battle again.');
+      }
+    },
+    'primary-button',
+  );
 
   grid.root.addEventListener('mouseover', (event) => previewFrom(event));
   grid.root.addEventListener('mouseleave', () => clearGridState(grid, 'cell--preview'));
@@ -65,8 +79,7 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
     if (!spec) return;
     const board = boardFrom(placements);
     if (!board.canPlace(row, col, spec.size, orientation)) {
-      status.textContent = `${spec.name} does not fit there — try another square.`;
-      status.classList.add('status--warn');
+      warn(`${spec.name} does not fit there — try another square.`);
       return;
     }
     placements = [...placements, { name: spec.name, size: spec.size, row, col, orientation }];
@@ -126,6 +139,11 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
     } else {
       status.textContent = 'Place your ships yourself, or let the computer randomize a fresh layout.';
     }
+  }
+
+  function warn(message: string) {
+    status.textContent = message;
+    status.classList.add('status--warn');
   }
 }
 
