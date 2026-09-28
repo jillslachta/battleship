@@ -248,11 +248,13 @@ body {
   border-color: #8b97a5;
 }
 
-.cell--preview {
+.cell.cell--preview,
+.cell.cell--preview:hover {
   background: #4c8f6a;
 }
 
-.cell--invalid {
+.cell.cell--invalid,
+.cell.cell--invalid:hover {
   background: #8c3a3a;
 }
 
