@@ -178,6 +178,25 @@ body {
   color: var(--foam);
 }
 
+.sound-toggle {
+  align-self: center;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--slate);
+  font: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.sound-toggle:hover {
+  color: var(--foam);
+  border-color: rgb(255 255 255 / 45%);
+}
+
 /* ---------- Boards ---------- */
 
 .setup,
