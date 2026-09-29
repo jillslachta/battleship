@@ -458,6 +458,12 @@ body {
   color: var(--slate);
 }
 
+.result__shot {
+  margin: 0;
+  color: var(--foam);
+  font-weight: 600;
+}
+
 /* ---------- Mobile ---------- */
 
 @media (max-width: 720px) {

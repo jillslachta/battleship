@@ -106,7 +106,9 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     ownCount.textContent = `${game.playerBoard.remainingShips}/${FLEET.length} afloat`;
 
     if (game.isOver) {
-      turnBanner.textContent = game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Your fleet is lost.';
+      const summary = game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Your fleet is lost.';
+      const finalShot = game.winner === 'computer' ? lastComputerShot : '';
+      turnBanner.textContent = finalShot ? `${finalShot} ${summary}` : summary;
       turnBanner.className = 'turn turn--over';
       showResult(game.winner === 'player');
       return;
@@ -129,6 +131,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     overlay.replaceChildren(
       el('div', { className: `result result--${won ? 'win' : 'lose'}` }, [
         el('h2', { className: 'result__title', text: won ? 'Victory!' : 'Defeated' }),
+        ...(won || !lastComputerShot ? [] : [el('p', { className: 'result__shot', text: lastComputerShot })]),
         el('p', {
           className: 'result__text',
           text: won
