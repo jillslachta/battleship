@@ -3,9 +3,9 @@ import { Game, TurnOutcome } from '../game/game';
 import { layoutGenerator } from '../game/game';
 import { Coord, FLEET, Placement } from '../game/types';
 import { el, mount } from './dom';
-import { coordLabel, createGrid } from './grid';
+import { clearGridState, coordLabel, createGrid } from './grid';
 
-const COMPUTER_DELAY_MS = 650;
+const COMPUTER_DELAY_MS = 1100;
 
 export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => void): void {
   const game = new Game(playerPlacements, layoutGenerator.next());
@@ -17,6 +17,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   const enemyCount = el('span', { className: 'board__count' });
   const ownCount = el('span', { className: 'board__count' });
   const overlay = el('div', { className: 'overlay overlay--hidden' });
+  let lastComputerShot = '';
 
   playerPlacements.forEach((placement) => {
     for (let i = 0; i < placement.size; i++) {
@@ -52,6 +53,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   function handlePlayerShot(coord: Coord) {
     if (game.isOver || game.turn !== 'player' || game.computerBoard.alreadyShot(coord)) return;
 
+    clearGridState(ownGrid, 'cell--latest');
     const outcome = game.playerFire(coord);
     paint(enemyGrid.cells[coord.row][coord.col], outcome);
     if (outcome.result === 'sunk') markSunk(enemyGrid.cells, outcome);
@@ -64,7 +66,10 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   function computerTurn() {
     if (game.isOver || game.turn !== 'computer') return;
     const outcome = game.computerFire();
-    paint(ownGrid.cells[outcome.coord.row][outcome.coord.col], outcome);
+    const cell = ownGrid.cells[outcome.coord.row][outcome.coord.col];
+    paint(cell, outcome);
+    cell.classList.add('cell--latest');
+    lastComputerShot = describe(outcome);
     if (outcome.result === 'sunk') markSunk(ownGrid.cells, outcome);
     addLog(outcome);
     update();
@@ -82,16 +87,18 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     cell.disabled = true;
   }
 
-  function addLog(outcome: TurnOutcome) {
+  function describe(outcome: TurnOutcome) {
     const who = outcome.by === 'player' ? 'You' : 'Computer';
     const where = coordLabel(outcome.coord.row, outcome.coord.col);
-    const text =
-      outcome.result === 'miss'
-        ? `${who} fired at ${where} — miss.`
-        : outcome.result === 'hit'
-          ? `${who} fired at ${where} — HIT!`
-          : `${who} fired at ${where} — SUNK the ${outcome.shipName}!`;
-    log.prepend(el('li', { className: `log__item log__item--${outcome.result}`, text }));
+    return outcome.result === 'miss'
+      ? `${who} fired at ${where} — miss.`
+      : outcome.result === 'hit'
+        ? `${who} fired at ${where} — HIT!`
+        : `${who} fired at ${where} — SUNK the ${outcome.shipName}!`;
+  }
+
+  function addLog(outcome: TurnOutcome) {
+    log.prepend(el('li', { className: `log__item log__item--${outcome.result}`, text: describe(outcome) }));
   }
 
   function update() {
@@ -99,14 +106,20 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     ownCount.textContent = `${game.playerBoard.remainingShips}/${FLEET.length} afloat`;
 
     if (game.isOver) {
-      turnBanner.textContent = game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Your fleet is lost.';
+      const summary = game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Your fleet is lost.';
+      const finalShot = game.winner === 'computer' ? lastComputerShot : '';
+      turnBanner.textContent = finalShot ? `${finalShot} ${summary}` : summary;
       turnBanner.className = 'turn turn--over';
       showResult(game.winner === 'player');
       return;
     }
 
     const playerTurn = game.turn === 'player';
-    turnBanner.textContent = playerTurn ? 'Your turn — pick a target square.' : 'Computer is taking aim…';
+    turnBanner.textContent = !playerTurn
+      ? 'Computer is taking aim…'
+      : lastComputerShot
+        ? `${lastComputerShot} Your turn — pick a target square.`
+        : 'Your turn — pick a target square.';
     turnBanner.className = `turn ${playerTurn ? 'turn--player' : 'turn--computer'}`;
     enemyGrid.root.classList.toggle('grid--locked', !playerTurn);
   }
@@ -118,6 +131,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     overlay.replaceChildren(
       el('div', { className: `result result--${won ? 'win' : 'lose'}` }, [
         el('h2', { className: 'result__title', text: won ? 'Victory!' : 'Defeated' }),
+        ...(won || !lastComputerShot ? [] : [el('p', { className: 'result__shot', text: lastComputerShot })]),
         el('p', {
           className: 'result__text',
           text: won
