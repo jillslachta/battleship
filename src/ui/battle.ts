@@ -4,6 +4,7 @@ import { layoutGenerator } from '../game/game';
 import { Coord, FLEET, Placement } from '../game/types';
 import { el, mount } from './dom';
 import { clearGridState, coordLabel, createGrid } from './grid';
+import { playResultTune, setSoundEnabled, soundEnabled } from './sound';
 
 const COMPUTER_DELAY_MS = 1100;
 
@@ -17,7 +18,14 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   const enemyCount = el('span', { className: 'board__count' });
   const ownCount = el('span', { className: 'board__count' });
   const overlay = el('div', { className: 'overlay overlay--hidden' });
+  const soundToggle = el('button', { className: 'sound-toggle', attrs: { type: 'button' } });
   let lastComputerShot = '';
+
+  soundToggle.addEventListener('click', () => {
+    setSoundEnabled(!soundEnabled());
+    paintSoundToggle();
+  });
+  paintSoundToggle();
 
   playerPlacements.forEach((placement) => {
     for (let i = 0; i < placement.size; i++) {
@@ -32,6 +40,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     el('header', { className: 'screen__header' }, [
       el('h1', { className: 'screen__title', text: 'Battle stations' }),
       turnBanner,
+      soundToggle,
     ]),
     el('div', { className: 'battle' }, [
       el('div', { className: 'board' }, [
@@ -124,7 +133,15 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     enemyGrid.root.classList.toggle('grid--locked', !playerTurn);
   }
 
+  function paintSoundToggle() {
+    const on = soundEnabled();
+    soundToggle.textContent = on ? 'Sound: on' : 'Sound: off';
+    soundToggle.setAttribute('aria-pressed', String(on));
+  }
+
   function showResult(won: boolean) {
+    playResultTune(won);
+
     const again = el('button', { className: 'primary-button', text: 'Play again', attrs: { type: 'button' } });
     again.addEventListener('click', onPlayAgain);
     overlay.classList.remove('overlay--hidden');
