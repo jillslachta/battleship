@@ -48,7 +48,10 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
   );
 
   grid.root.addEventListener('mouseover', (event) => previewFrom(event));
-  grid.root.addEventListener('mouseleave', () => clearGridState(grid, 'cell--preview'));
+  grid.root.addEventListener('mouseleave', () => {
+    clearGridState(grid, 'cell--preview');
+    clearGridState(grid, 'cell--invalid');
+  });
 
   const view = el('section', { className: 'screen' }, [
     el('header', { className: 'screen__header' }, [
