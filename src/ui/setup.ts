@@ -2,6 +2,8 @@ import { Board, shipCells } from '../game/board';
 import { layoutGenerator } from '../game/game';
 import { FLEET, Orientation, Placement } from '../game/types';
 import { el, mount } from './dom';
+import { startTheme, stopTheme } from './sound';
+import { createSoundToggle } from './soundToggle';
 import { clearGridState, createGrid } from './grid';
 
 export function renderSetup(onReady: (placements: Placement[]) => void): void {
@@ -57,6 +59,7 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
     el('header', { className: 'screen__header' }, [
       el('h1', { className: 'screen__title', text: 'Deploy your fleet' }),
       status,
+      createSoundToggle((enabled) => (enabled ? startTheme() : stopTheme())),
     ]),
     el('div', { className: 'setup' }, [
       el('div', { className: 'board' }, [el('h2', { className: 'board__label', text: 'Your waters' }), grid.root]),

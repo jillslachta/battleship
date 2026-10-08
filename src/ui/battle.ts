@@ -4,10 +4,15 @@ import { layoutGenerator } from '../game/game';
 import { Coord, FLEET, Placement } from '../game/types';
 import { el, mount } from './dom';
 import { clearGridState, coordLabel, createGrid } from './grid';
-import { playResultTune, playShotSound, setSoundEnabled, soundEnabled, unlockAudio } from './sound';
+import { FLIGHT_S } from '../audio/effects';
+import { playResultTune, playShotSound, stopTheme, unlockAudio } from './sound';
+import { createSoundToggle } from './soundToggle';
 
 const COMPUTER_DELAY_MS = 1100;
 const TOAST_MS = 1800;
+const FLIGHT_MS = FLIGHT_S * 1000;
+/** How long the explosion or splash plays before the square settles into its final mark. */
+const IMPACT_MS = 650;
 
 export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => void): void {
   const game = new Game(playerPlacements, layoutGenerator.next());
@@ -19,17 +24,13 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   const enemyCount = el('span', { className: 'board__count' });
   const ownCount = el('span', { className: 'board__count' });
   const overlay = el('div', { className: 'overlay overlay--hidden' });
-  const soundToggle = el('button', { className: 'sound-toggle', attrs: { type: 'button' } });
+  const soundToggle = createSoundToggle();
   const toast = el('div', { className: 'toast toast--hidden', attrs: { role: 'status', 'aria-live': 'polite' } });
   let lastComputerShot = '';
   let lastPlayerShot = '';
   let toastTimer = 0;
 
-  soundToggle.addEventListener('click', () => {
-    setSoundEnabled(!soundEnabled());
-    paintSoundToggle();
-  });
-  paintSoundToggle();
+  stopTheme();
 
   playerPlacements.forEach((placement) => {
     for (let i = 0; i < placement.size; i++) {
@@ -72,29 +73,45 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
 
     clearGridState(ownGrid, 'cell--latest');
     const outcome = game.playerFire(coord);
-    paint(enemyGrid.cells[coord.row][coord.col], outcome);
-    if (outcome.result === 'sunk') markSunk(enemyGrid.cells, outcome);
-    lastPlayerShot = describe(outcome);
-    addLog(outcome);
-    if (!game.isOver) playShotSound(outcome.result, 'player');
-    if (outcome.result === 'sunk') showToast(`You sunk the ${outcome.shipName}!`, 'toast--player');
-    update();
+    const cell = enemyGrid.cells[coord.row][coord.col];
+    cell.disabled = true;
+    cell.classList.add('cell--target');
+    enemyGrid.root.classList.add('grid--locked');
+    turnBanner.textContent = `Missile away to ${coordLabel(coord.row, coord.col)}…`;
+    turnBanner.className = 'turn turn--flight';
+    playShotSound(outcome.result, 'player');
 
-    if (!game.isOver) window.setTimeout(computerTurn, COMPUTER_DELAY_MS);
+    window.setTimeout(() => {
+      cell.classList.remove('cell--target');
+      paint(cell, outcome);
+      if (outcome.result === 'sunk') markSunk(enemyGrid.cells, outcome);
+      lastPlayerShot = describe(outcome);
+      addLog(outcome);
+      if (outcome.result === 'sunk') showToast(`You sunk the ${outcome.shipName}!`, 'toast--player');
+      update();
+      if (!game.isOver) window.setTimeout(computerTurn, COMPUTER_DELAY_MS);
+    }, FLIGHT_MS);
   }
 
   function computerTurn() {
     if (game.isOver || game.turn !== 'computer') return;
     const outcome = game.computerFire();
     const cell = ownGrid.cells[outcome.coord.row][outcome.coord.col];
-    paint(cell, outcome);
-    cell.classList.add('cell--latest');
-    lastComputerShot = describe(outcome);
-    if (outcome.result === 'sunk') markSunk(ownGrid.cells, outcome);
-    addLog(outcome);
-    if (!game.isOver) playShotSound(outcome.result, 'computer');
-    if (outcome.result === 'sunk') showToast(`Computer sunk your ${outcome.shipName}!`, 'toast--computer');
-    update();
+    cell.classList.add('cell--target');
+    turnBanner.textContent = 'Incoming…';
+    turnBanner.className = 'turn turn--computer';
+    playShotSound(outcome.result, 'computer');
+
+    window.setTimeout(() => {
+      cell.classList.remove('cell--target');
+      paint(cell, outcome);
+      cell.classList.add('cell--latest');
+      lastComputerShot = describe(outcome);
+      if (outcome.result === 'sunk') markSunk(ownGrid.cells, outcome);
+      addLog(outcome);
+      if (outcome.result === 'sunk') showToast(`Computer sunk your ${outcome.shipName}!`, 'toast--computer');
+      update();
+    }, FLIGHT_MS);
   }
 
   function showToast(message: string, variant: string) {
@@ -112,8 +129,10 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   }
 
   function paint(cell: HTMLButtonElement, outcome: TurnOutcome) {
-    cell.classList.add(outcome.result === 'miss' ? 'cell--miss' : 'cell--hit');
+    const impact = outcome.result === 'miss' ? 'cell--splash' : 'cell--boom';
+    cell.classList.add(outcome.result === 'miss' ? 'cell--miss' : 'cell--hit', impact);
     cell.disabled = true;
+    window.setTimeout(() => cell.classList.remove(impact), IMPACT_MS);
   }
 
   function describe(outcome: TurnOutcome) {
@@ -153,12 +172,6 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
         : 'Your turn — pick a target square.';
     turnBanner.className = `turn ${playerTurn ? 'turn--player' : 'turn--computer'}`;
     enemyGrid.root.classList.toggle('grid--locked', !playerTurn);
-  }
-
-  function paintSoundToggle() {
-    const on = soundEnabled();
-    soundToggle.textContent = on ? 'Sound: on' : 'Sound: off';
-    soundToggle.setAttribute('aria-pressed', String(on));
   }
 
   function showResult(won: boolean) {
