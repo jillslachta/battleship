@@ -4,9 +4,10 @@ import { layoutGenerator } from '../game/game';
 import { Coord, FLEET, Placement } from '../game/types';
 import { el, mount } from './dom';
 import { clearGridState, coordLabel, createGrid } from './grid';
-import { playResultTune, setSoundEnabled, soundEnabled } from './sound';
+import { playResultTune, playShotSound, setSoundEnabled, soundEnabled, unlockAudio } from './sound';
 
 const COMPUTER_DELAY_MS = 1100;
+const TOAST_MS = 1800;
 
 export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => void): void {
   const game = new Game(playerPlacements, layoutGenerator.next());
@@ -19,7 +20,10 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   const ownCount = el('span', { className: 'board__count' });
   const overlay = el('div', { className: 'overlay overlay--hidden' });
   const soundToggle = el('button', { className: 'sound-toggle', attrs: { type: 'button' } });
+  const toast = el('div', { className: 'toast toast--hidden', attrs: { role: 'status', 'aria-live': 'polite' } });
   let lastComputerShot = '';
+  let lastPlayerShot = '';
+  let toastTimer = 0;
 
   soundToggle.addEventListener('click', () => {
     setSoundEnabled(!soundEnabled());
@@ -53,6 +57,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
       ]),
     ]),
     el('div', { className: 'log-panel' }, [el('h2', { className: 'log__title', text: 'Battle log' }), log]),
+    toast,
     overlay,
   ]);
 
@@ -62,11 +67,17 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
   function handlePlayerShot(coord: Coord) {
     if (game.isOver || game.turn !== 'player' || game.computerBoard.alreadyShot(coord)) return;
 
+    // A tap is the only moment a phone lets a page start making sound.
+    unlockAudio();
+
     clearGridState(ownGrid, 'cell--latest');
     const outcome = game.playerFire(coord);
     paint(enemyGrid.cells[coord.row][coord.col], outcome);
     if (outcome.result === 'sunk') markSunk(enemyGrid.cells, outcome);
+    lastPlayerShot = describe(outcome);
     addLog(outcome);
+    if (!game.isOver) playShotSound(outcome.result, 'player');
+    if (outcome.result === 'sunk') showToast(`You sunk the ${outcome.shipName}!`, 'toast--player');
     update();
 
     if (!game.isOver) window.setTimeout(computerTurn, COMPUTER_DELAY_MS);
@@ -81,7 +92,16 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     lastComputerShot = describe(outcome);
     if (outcome.result === 'sunk') markSunk(ownGrid.cells, outcome);
     addLog(outcome);
+    if (!game.isOver) playShotSound(outcome.result, 'computer');
+    if (outcome.result === 'sunk') showToast(`Computer sunk your ${outcome.shipName}!`, 'toast--computer');
     update();
+  }
+
+  function showToast(message: string, variant: string) {
+    window.clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.className = `toast ${variant}`;
+    toastTimer = window.setTimeout(() => toast.classList.add('toast--hidden'), TOAST_MS);
   }
 
   function markSunk(cells: HTMLButtonElement[][], outcome: TurnOutcome) {
@@ -115,6 +135,8 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
     ownCount.textContent = `${game.playerBoard.remainingShips}/${FLEET.length} afloat`;
 
     if (game.isOver) {
+      window.clearTimeout(toastTimer);
+      toast.classList.add('toast--hidden');
       const summary = game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Your fleet is lost.';
       const finalShot = game.winner === 'computer' ? lastComputerShot : '';
       turnBanner.textContent = finalShot ? `${finalShot} ${summary}` : summary;
@@ -125,7 +147,7 @@ export function renderBattle(playerPlacements: Placement[], onPlayAgain: () => v
 
     const playerTurn = game.turn === 'player';
     turnBanner.textContent = !playerTurn
-      ? 'Computer is taking aim…'
+      ? `${lastPlayerShot} Computer is taking aim…`
       : lastComputerShot
         ? `${lastComputerShot} Your turn — pick a target square.`
         : 'Your turn — pick a target square.';
