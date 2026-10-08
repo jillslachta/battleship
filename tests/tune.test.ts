@@ -25,3 +25,32 @@ describe('end-of-game tunes', () => {
     });
   });
 });
+
+import { shotTune } from '../src/audio/tune';
+
+describe('per-shot sound effects', () => {
+  it('stays short so turns keep moving', () => {
+    (['miss', 'hit', 'sunk'] as const).forEach((result) => {
+      const tune = shotTune(result);
+      expect(tune.notes.length).toBeGreaterThan(0);
+      expect(tuneDuration(tune)).toBeLessThan(0.7);
+      tune.notes.forEach((note) => expect(note.length).toBeGreaterThan(0));
+    });
+  });
+
+  it('gets bigger as the outcome gets bigger', () => {
+    const miss = shotTune('miss');
+    const hit = shotTune('hit');
+    const sunk = shotTune('sunk');
+    expect(hit.notes.length).toBeGreaterThan(miss.notes.length);
+    expect(sunk.notes.length).toBeGreaterThan(hit.notes.length);
+    expect(tuneDuration(sunk)).toBeGreaterThan(tuneDuration(hit));
+  });
+
+  it('sounds different from the end-of-game tunes', () => {
+    const endings = [victoryTune(), defeatTune()].map((tune) => tune.notes.map((n) => n.freq).join(','));
+    (['miss', 'hit', 'sunk'] as const).forEach((result) => {
+      expect(endings).not.toContain(shotTune(result).notes.map((n) => n.freq).join(','));
+    });
+  });
+});
