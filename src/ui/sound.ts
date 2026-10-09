@@ -15,6 +15,13 @@ export const IMPACT_OFFSET_S = 0.45;
 
 const STORAGE_KEY = 'battleship:sound';
 
+/**
+ * Loop points for the theme, in seconds. The drum pattern repeats every
+ * 81,415 samples at 44.1 kHz; the loop spans exactly two patterns inside the
+ * steady part of the clip, clear of its leading silence and fade-out.
+ */
+export const THEME_LOOP = { start: 121_380 / 44_100, end: 284_210 / 44_100 } as const;
+
 const CLIPS = {
   launch: launchUrl,
   splash: splashUrl,
@@ -92,6 +99,8 @@ export function startTheme(): void {
     themeSource = ctx.createBufferSource();
     themeSource.buffer = buffer;
     themeSource.loop = true;
+    themeSource.loopStart = THEME_LOOP.start;
+    themeSource.loopEnd = THEME_LOOP.end;
     themeSource.connect(themeGain);
     themeSource.start();
   });
