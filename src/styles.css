@@ -428,6 +428,102 @@ body {
   font-weight: 700;
 }
 
+/* ---------- Missile flight and impact ---------- */
+
+.turn--flight {
+  color: var(--foam);
+}
+
+.cell--target {
+  position: relative;
+  animation: target-blink 0.15s steps(2, start) infinite;
+}
+
+@keyframes target-blink {
+  to {
+    background: var(--amber);
+  }
+}
+
+.cell--boom,
+.cell--splash {
+  overflow: visible;
+}
+
+.cell--boom::before,
+.cell--splash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cell--boom::before {
+  background: radial-gradient(circle, #fff7b0 0%, #ffb347 35%, #ff4d1a 60%, rgb(255 77 26 / 0%) 72%);
+  animation: boom 0.65s ease-out forwards;
+}
+
+.cell--boom::after {
+  animation: mark-in 0.65s steps(1, end);
+}
+
+.cell--splash::before {
+  border: 3px solid rgb(219 234 254 / 85%);
+  animation: splash 0.6s ease-out forwards;
+}
+
+.cell--splash::after {
+  animation: mark-in 0.6s steps(1, end);
+}
+
+@keyframes boom {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  45% {
+    transform: scale(2.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes splash {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Keep the final mark hidden until the impact animation has played. */
+@keyframes mark-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell--target,
+  .cell--boom::before,
+  .cell--splash::before,
+  .cell--boom::after,
+  .cell--splash::after {
+    animation: none;
+  }
+}
+
 /* ---------- Sunk toast ---------- */
 
 .toast {

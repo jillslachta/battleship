@@ -1,9 +1,14 @@
 import heroUrl from '../assets/battleship-hero.jpg';
 import { el, mount } from './dom';
+import { startTheme, unlockAudio } from './sound';
 
 export function renderLanding(onBegin: () => void): void {
   const button = el('button', { className: 'primary-button', text: 'Begin Game', attrs: { type: 'button' } });
-  button.addEventListener('click', onBegin);
+  button.addEventListener('click', () => {
+    unlockAudio();
+    startTheme();
+    onBegin();
+  });
 
   const view = el('section', { className: 'landing' }, [
     el('img', {
