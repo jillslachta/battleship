@@ -4,13 +4,13 @@ import { layoutGenerator } from '../game/game';
 import { Coord, FLEET, Placement } from '../game/types';
 import { el, mount } from './dom';
 import { clearGridState, coordLabel, createGrid } from './grid';
-import { FLIGHT_S } from '../audio/effects';
-import { playResultTune, playShotSound, stopTheme, unlockAudio } from './sound';
+import { FLIGHT_S, IMPACT_OFFSET_S, playResultTune, playShotSound, stopTheme, unlockAudio } from './sound';
 import { createSoundToggle } from './soundToggle';
 
 const COMPUTER_DELAY_MS = 1100;
 const TOAST_MS = 1800;
-const FLIGHT_MS = FLIGHT_S * 1000;
+// The square changes the moment the landing clip peaks, not when it starts.
+const FLIGHT_MS = (FLIGHT_S + IMPACT_OFFSET_S) * 1000;
 /** How long the explosion or splash plays before the square settles into its final mark. */
 const IMPACT_MS = 650;
 

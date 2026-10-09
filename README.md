@@ -49,3 +49,7 @@ npm run build      # production build into dist/
 ## Deployment
 
 Pushes to `main` build the site and publish it to GitHub Pages via `.github/workflows/deploy.yml`.
+
+## Sound credits
+
+Sound effects and music are free-to-use clips from [Pixabay](https://pixabay.com/) (Pixabay Content License, no attribution required): missile firing and war drum loop by freesound_community, missile explosion by voicebosch, war horn and drums by soundmarker33. The splash, sunk, victory and defeat clips are edits of those recordings.
