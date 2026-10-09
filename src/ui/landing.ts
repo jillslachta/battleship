@@ -23,5 +23,16 @@ export function renderLanding(onBegin: () => void): void {
     ]),
   ]);
 
+  // Browsers refuse to play sound until the first tap, so any tap on the
+  // title screen (not just the button) starts the theme.
+  view.addEventListener(
+    'pointerdown',
+    () => {
+      unlockAudio();
+      startTheme();
+    },
+    { once: true },
+  );
+
   mount(view);
 }
