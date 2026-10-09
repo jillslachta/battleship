@@ -74,6 +74,7 @@ export function renderSetup(onReady: (placements: Placement[]) => void): void {
 
   update();
   mount(view);
+  startTheme();
 
   function nextShip() {
     return FLEET[placements.length];

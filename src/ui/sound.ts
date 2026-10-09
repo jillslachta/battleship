@@ -15,6 +15,13 @@ export const IMPACT_OFFSET_S = 0.45;
 
 const STORAGE_KEY = 'battleship:sound';
 
+/**
+ * Loop points for the theme, in seconds. The drum pattern repeats every
+ * 81,415 samples at 44.1 kHz; the loop spans exactly two patterns inside the
+ * steady part of the clip, clear of its leading silence and fade-out.
+ */
+export const THEME_LOOP = { start: 121_380 / 44_100, end: 284_210 / 44_100 } as const;
+
 const CLIPS = {
   launch: launchUrl,
   splash: splashUrl,
@@ -33,6 +40,13 @@ const buffers = new Map<ClipName, AudioBuffer>();
 const loading = new Map<ClipName, Promise<AudioBuffer | null>>();
 let themeSource: AudioBufferSourceNode | null = null;
 let themeGain: GainNode | null = null;
+let resultTune: Voice | null = null;
+let resultTuneId = 0;
+
+interface Voice {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+}
 
 function audioContextCtor(): AudioContextCtor | undefined {
   const scope = globalThis as typeof globalThis & { webkitAudioContext?: AudioContextCtor };
@@ -76,13 +90,28 @@ export function playResultTune(won: boolean): void {
   const ctx = readyContext();
   if (!ctx) return;
   stopTheme();
-  void play(ctx, won ? 'victory' : 'defeat', 0.2, 1);
+  stopResultTune();
+  const id = resultTuneId;
+  void play(ctx, won ? 'victory' : 'defeat', 0.2, 1).then((voice) => {
+    if (!voice) return;
+    if (id === resultTuneId) resultTune = voice;
+    else fadeOut(ctx, voice);
+  });
+}
+
+/** Fade out the victory/defeat tune if it is still playing. */
+function stopResultTune(): void {
+  resultTuneId += 1;
+  if (context && resultTune) fadeOut(context, resultTune);
+  resultTune = null;
 }
 
 /** Start the looping title/setup theme. Safe to call more than once. */
 export function startTheme(): void {
   const ctx = readyContext();
-  if (!ctx || themeSource) return;
+  if (!ctx) return;
+  stopResultTune();
+  if (themeSource) return;
   void load('theme').then((buffer) => {
     if (!buffer || themeSource || !soundEnabled()) return;
     themeGain = ctx.createGain();
@@ -92,6 +121,8 @@ export function startTheme(): void {
     themeSource = ctx.createBufferSource();
     themeSource.buffer = buffer;
     themeSource.loop = true;
+    themeSource.loopStart = THEME_LOOP.start;
+    themeSource.loopEnd = THEME_LOOP.end;
     themeSource.connect(themeGain);
     themeSource.start();
   });
@@ -104,13 +135,7 @@ export function stopTheme(): void {
     themeGain = null;
     return;
   }
-  const source = themeSource;
-  const gain = themeGain;
-  const at = context.currentTime;
-  gain.gain.cancelScheduledValues(at);
-  gain.gain.setValueAtTime(gain.gain.value, at);
-  gain.gain.linearRampToValueAtTime(0, at + 0.7);
-  source.stop(at + 0.75);
+  fadeOut(context, { source: themeSource, gain: themeGain });
   themeSource = null;
   themeGain = null;
 }
@@ -120,6 +145,14 @@ export function themePlaying(): boolean {
 }
 
 /* ---------- internals ---------- */
+
+function fadeOut(ctx: AudioContext, { source, gain }: Voice): void {
+  const at = ctx.currentTime;
+  gain.gain.cancelScheduledValues(at);
+  gain.gain.setValueAtTime(gain.gain.value, at);
+  gain.gain.linearRampToValueAtTime(0, at + 0.7);
+  source.stop(at + 0.75);
+}
 
 function ensureContext(): AudioContext | null {
   if (context) return context;
@@ -166,10 +199,10 @@ function decode(ctx: AudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
   });
 }
 
-async function play(ctx: AudioContext, name: ClipName, delay: number, volume: number): Promise<void> {
+async function play(ctx: AudioContext, name: ClipName, delay: number, volume: number): Promise<Voice | null> {
   const at = ctx.currentTime + delay;
   const buffer = await load(name);
-  if (!buffer || !soundEnabled()) return;
+  if (!buffer || !soundEnabled()) return null;
   const source = ctx.createBufferSource();
   source.buffer = buffer;
   const gain = ctx.createGain();
@@ -177,4 +210,5 @@ async function play(ctx: AudioContext, name: ClipName, delay: number, volume: nu
   source.connect(gain).connect(ctx.destination);
   // If loading took longer than the delay, play now rather than skipping.
   source.start(Math.max(at, ctx.currentTime));
+  return { source, gain };
 }
